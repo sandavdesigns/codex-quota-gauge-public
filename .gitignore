@@ -1,0 +1,11 @@
+.env
+**/config.h
+**/.pio/
+**/node_modules/
+**/auth.json
+**/.codex/
+work/
+# Historical duplicate; canonical firmware guide is firmware/README.md.
+/firmware/README 2.md
+# Local device keys for the optional HTTPS deployment.
+/secrets/

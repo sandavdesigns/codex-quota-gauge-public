@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Codex Quota Gauge</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">LOKALES DASHBOARD</p>
+          <h1>Codex Quota Gauge</h1>
+        </div>
+        <div class="badges" aria-label="Datenstatus">
+          <span id="demo-badge" class="badge demo" hidden>DEMO</span>
+          <span id="state-badge" class="badge pending">Wird abgerufen</span>
+        </div>
+      </header>
+
+      <section class="intro" aria-labelledby="overview-title">
+        <div>
+          <p class="eyebrow">VERFÜGBARES KONTINGENT</p>
+          <h2 id="overview-title">Deine verbleibenden Codex-Limits</h2>
+        </div>
+        <p id="source-note" class="source-note">Quelle wird abgerufen …</p>
+      </section>
+
+      <section id="ring-grid" class="ring-grid" aria-live="polite" aria-busy="true"></section>
+
+      <section class="status-panel" aria-label="Messungsstatus">
+        <div class="status-row"><span class="status-label">Letzte Messung</span><strong id="last-measurement">Noch keine Messung</strong></div>
+        <div class="status-row"><span class="status-label">Alter der Messung</span><strong id="measurement-age">—</strong></div>
+        <p id="connection-note" class="connection-note">Verbindung wird hergestellt …</p>
+      </section>
+
+      <aside class="login-hint">
+        <span class="hint-mark" aria-hidden="true">⌘</span>
+        <p><strong>Codex-Anmeldung im Container per Terminal;</strong> Anleitung im Repository. Dieses Dashboard speichert keine Tokens und bietet keine Anmeldung im Browser.</p>
+      </aside>
+
+      <footer><a href="/v1/quota">Rohdaten als JSON öffnen</a><span aria-hidden="true">•</span><span>Aktualisierung alle 30 Sekunden</span></footer>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

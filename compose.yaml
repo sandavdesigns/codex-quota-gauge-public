@@ -1,0 +1,27 @@
+services:
+  gauge:
+    build:
+      context: ./service
+      args:
+        CODEX_VERSION: ${CODEX_VERSION:-0.164.0-alpha.11.1}
+    restart: unless-stopped
+    ports:
+      - "${LAN_IP:-127.0.0.1}:${HTTP_PORT:-8787}:8787"
+    environment:
+      SOURCE: ${SOURCE:-demo}
+      LIMIT_ID: ${LIMIT_ID:-codex}
+      POLL_SECONDS: 300
+      STALE_SECONDS: 900
+      DEVICE_TOKEN_FILE: ${DEVICE_TOKEN_FILE:-}
+    volumes:
+      - codex-auth:/home/node/.codex
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8787/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 60s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+volumes:
+  codex-auth:

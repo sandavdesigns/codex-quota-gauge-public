@@ -1,0 +1,10 @@
+services:
+  gauge:
+    environment:
+      DEVICE_TOKEN_FILE: /run/secrets/gauge_device_token
+    secrets:
+      - gauge_device_token
+
+secrets:
+  gauge_device_token:
+    file: ${DEVICE_TOKEN_PATH:-./secrets/device-token.txt}

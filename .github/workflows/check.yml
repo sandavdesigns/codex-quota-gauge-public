@@ -1,0 +1,66 @@
+name: Service and Docker checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test quota source, HTTP and dashboard
+        run: npm test --prefix service
+      - name: Test embedded Wi-Fi portal script
+        run: node --test firmware/test/web/*.test.mjs
+      - name: Test portable firmware helpers
+        shell: bash
+        run: |
+          for name in clock_text pet_motion pet_centering provisioning_validation; do
+            g++ -std=c++11 -Wall -Wextra -pedantic -Ifirmware/include firmware/test/host/${name}_test.cpp -o /tmp/gauge-${name}
+            /tmp/gauge-${name}
+          done
+      - name: Build source-only public package
+        run: python3 tools/package_public.py
+      - name: Validate Docker Compose and configurable host port
+        shell: bash
+        run: |
+          docker compose config --quiet
+          HTTP_PORT=18878 docker compose config --format json | python3 -c '
+          import json,sys
+          port=json.load(sys.stdin)["services"]["gauge"]["ports"][0]
+          assert str(port["published"]) == "18878"
+          assert port["target"] == 8787'
+      - name: Build container from Compose
+        run: docker compose build
+      - name: Check system TLS trust store for Codex
+        run: |
+          docker compose run --rm --no-deps gauge sh -ec 'test -s /etc/ssl/certs/ca-certificates.crt; dpkg-query -W ca-certificates'
+      - name: Smoke test Compose with a custom port
+        shell: bash
+        env:
+          HTTP_PORT: '18878'
+          LAN_IP: '127.0.0.1'
+          SOURCE: demo
+        run: |
+          docker compose up -d --no-build
+          trap 'docker compose down --volumes' EXIT
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:18878/healthz; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:18878/ | grep -q 'Codex'
+          curl -fsS http://127.0.0.1:18878/v1/quota | node -e '
+            let input="";
+            process.stdin.on("data", x => input += x);
+            process.stdin.on("end", () => {
+              const data=JSON.parse(input);
+              if(data.source!=="demo" || data.state!=="ok" || data.limits.length!==2) process.exit(1);
+            });'
+      - name: Test protected remote route behind actual Nginx
+        run: bash deploy/test-remote.sh
