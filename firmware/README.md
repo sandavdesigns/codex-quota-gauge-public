@@ -71,3 +71,12 @@ python ~/.platformio/packages/tool-esptoolpy/esptool.py \
 
 Dieser Upload erhält vorhandene NVS-Einstellungen. Zum Weitergeben eines Geräts
 NVS ausdrücklich löschen; ein gewöhnliches Update reicht dafür nicht aus.
+
+## Gespeicherte Zurücksetzungen
+
+Bei einem Limit zeigt die Anzeige links neben der Animation je eine goldene
+Sternmarke pro verfügbarer Zurücksetzung (höchstens drei, weitere als `+N`).
+Bei zwei Limits steht der Zähler kompakt oberhalb der Ringe. `R?` bzw. `RESETS ?`
+bedeutet unbekannt, `R:0` bedeutet bestätigte null. Bei veralteten Daten oder
+Verbindungsfehlern wird die Markierung grau. Quelle ist ausschließlich der
+optionale Dienstwert `reset_credits`; die Anzeige löst keine Zurücksetzung aus.

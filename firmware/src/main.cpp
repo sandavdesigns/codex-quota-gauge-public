@@ -90,6 +90,8 @@ struct GaugeData {
   bool hasAge = false;
   uint32_t ageSecondsAtReceipt = 0;
   uint32_t staleAfterSeconds = DEFAULT_STALE_SECONDS;
+  bool hasResetCredits = false;
+  uint32_t resetCredits = 0;
   uint8_t limitCount = 0;
   LimitData limits[2];
   uint64_t receivedAtSeconds = 0;
@@ -115,7 +117,7 @@ struct TextWidgetCache {
   bool valid = false;
 };
 
-constexpr uint8_t TEXT_WIDGET_COUNT = 12;
+constexpr uint8_t TEXT_WIDGET_COUNT = 13;
 constexpr uint16_t TEXT_CANVAS_WIDTH = 192;
 constexpr uint16_t TEXT_CANVAS_HEIGHT = 40;
 constexpr uint16_t TEXT_CANVAS_STRIDE = (TEXT_CANVAS_WIDTH + 7) / 8;
@@ -133,6 +135,11 @@ uint32_t petMotionDurationMs = 0;
 uint8_t petPlanStep = 0;
 uint8_t petFrame = 0;
 bool petFrameValid = false;
+GFXcanvas16 resetCanvas(28, 76);
+bool resetStarsValid = false;
+bool resetStarsKnown = false;
+uint32_t resetStarsCount = 0;
+uint16_t resetStarsColor = 0;
 uint16_t dotCacheColor = 0;
 bool dotCacheValid = false;
 #if !GAUGE_DEMO_MODE
@@ -230,6 +237,10 @@ bool parsePayload(const String &body, GaugeData &parsed) {
 
   parsed = GaugeData{};
   parsed.valid = true;
+  if (root["reset_credits"].is<uint32_t>()) {
+    parsed.hasResetCredits = true;
+    parsed.resetCredits = root["reset_credits"].as<uint32_t>();
+  }
   parsed.sourceDemo = strcmp(source, "demo") == 0;
   parsed.reportedState = strcmp(state, "ok") == 0
                              ? FeedState::Ok
@@ -359,6 +370,8 @@ void installDemoData() {
   gauge = GaugeData{};
   gauge.valid = true;
   gauge.sourceDemo = true;
+  gauge.hasResetCredits = true;
+  gauge.resetCredits = 2;
   gauge.reportedState = FeedState::Ok;
   gauge.hasAge = true;
   gauge.ageSecondsAtReceipt = 3;
@@ -433,6 +446,7 @@ void invalidateRenderCaches() {
   ringCacheValid[0] = ringCacheValid[1] = false;
   dotCacheValid = false;
   petFrameValid = false;
+  resetStarsValid = false;
 }
 
 void enterRenderMode(RenderMode mode) {
@@ -627,6 +641,56 @@ void animatePet(uint32_t now) {
   petFrameValid = true;
 }
 
+// Cached, bounded panel: one gold star per known available reset, at most three.
+// Larger counts are explicit; unknown never looks like zero. No reset is consumed.
+void renderResetStars(uint32_t now, bool online, bool dual) {
+  if (dual) {
+    const String text = gauge.hasResetCredits ? String("RESETS ") + String(gauge.resetCredits) : "RESETS ?";
+    renderTextWidget(12, 72, 25, 96, 8, text, 1,
+                     online && !lastFetchFailed && !currentlyStale(now) ? COLOR_WARN : COLOR_MUTED);
+    return;
+  }
+  if (resetCanvas.getBuffer() == nullptr) return;
+  const uint16_t color = online && !lastFetchFailed && !currentlyStale(now) ? 0xFEA0 : COLOR_MUTED;
+  if (resetStarsValid && resetStarsKnown == gauge.hasResetCredits &&
+      resetStarsCount == gauge.resetCredits && resetStarsColor == color) return;
+  resetStarsValid = true;
+  resetStarsKnown = gauge.hasResetCredits;
+  resetStarsCount = gauge.resetCredits;
+  resetStarsColor = color;
+  resetCanvas.fillScreen(COLOR_BG);
+  resetCanvas.setTextColor(COLOR_MUTED);
+  resetCanvas.setTextSize(1);
+  if (!gauge.hasResetCredits) {
+    resetCanvas.setCursor(8, 34);
+    resetCanvas.print("R?");
+  } else if (gauge.resetCredits == 0) {
+    resetCanvas.setCursor(5, 34);
+    resetCanvas.print("R:0");
+  } else {
+    const uint8_t visible = gauge.resetCredits > 3 ? 3 : gauge.resetCredits;
+    for (uint8_t i = 0; i < visible; ++i) {
+      const int16_t cy = (gauge.resetCredits > 3 ? 30 : 40) - (visible - 1) * 11 + i * 22;
+      int16_t vx[10], vy[10];
+      for (uint8_t v = 0; v < 10; ++v) {
+        const float angle = -1.5707963F + v * 0.6283185F;
+        const float radius = v % 2 == 0 ? 8.0F : 3.5F;
+        vx[v] = 14 + lroundf(cosf(angle) * radius);
+        vy[v] = cy + lroundf(sinf(angle) * radius);
+      }
+      for (uint8_t v = 0; v < 10; ++v)
+        resetCanvas.fillTriangle(14, cy, vx[v], vy[v], vx[(v+1)%10], vy[(v+1)%10], color);
+    }
+    if (gauge.resetCredits > 3) {
+      resetCanvas.setCursor(2, 67);
+      resetCanvas.print("+");
+      if (gauge.resetCredits - 3 > 99) resetCanvas.print("99+");
+      else resetCanvas.print(gauge.resetCredits - 3);
+    }
+  }
+  display.drawRGBBitmap(40, 112, resetCanvas.getBuffer(), 28, 76);
+}
+
 void drawScreen(uint32_t now, bool reevaluate) {
   (void)reevaluate;
   const bool online = GAUGE_DEMO_MODE ? true : WiFi.status() == WL_CONNECTED;
@@ -706,6 +770,7 @@ void drawScreen(uint32_t now, bool reevaluate) {
   renderTextWidget(8, 63, dual ? 216 : 228, 114, 8, footer, 1, footerColor);
   const bool showHint = !GAUGE_DEMO_MODE && (!online || lastFetchFailed);
   renderTextWidget(9, 72, dual ? 198 : 217, 96, 8, showHint ? "BOOT 3s: SETUP" : "", 1, COLOR_MUTED);
+  renderResetStars(now, online, dual);
   animatePet(now);
   renderStatusDot(GAUGE_DEMO_MODE ? COLOR_MUTED : (online ? COLOR_OK : COLOR_BAD));
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {readCodex,normalize,demo} from '../provider.mjs';
+import {readCodex,normalize,normalizeResetCredits,demo} from '../provider.mjs';
 import {QuotaCache,makeServer} from '../server.mjs';
 const win=(used=25)=>({usedPercent:used,windowDurationMins:10080,resetsAt:2000});
 test('uses selected map bucket, omits absent second window',()=>{
@@ -26,6 +26,16 @@ test('two windows, unknown duration labeled honestly',()=>{
  const r=normalize({rateLimits:{primary:win(),secondary:{usedPercent:50,windowDurationMins:17}}});
  assert.equal(r.length,2);assert.equal(r[1].label,'17 MIN');assert.equal(r[1].resets_at,null);
 });
+test('reset credits use only the documented availableCount',()=>{
+ assert.equal(normalizeResetCredits({rateLimitResetCredits:{availableCount:0}}),0);
+ assert.equal(normalizeResetCredits({rateLimitResetCredits:{availableCount:3,credits:[{},{}]}}),3);
+ // A capped credit-row list is informational and must never be counted.
+ assert.equal(normalizeResetCredits({rateLimitResetCredits:{credits:[{},{}]}}),null);
+ for (const availableCount of [-1,1.5,'3',NaN,Infinity]) {
+   assert.equal(normalizeResetCredits({rateLimitResetCredits:{availableCount}}),null);
+ }
+ assert.equal(normalizeResetCredits(null),null);
+});
 test('missing at startup and stale after age, failure or elapsed reset',()=>{
  const c=new QuotaCache(); assert.equal(c.snapshot(1000,100).state,'missing');
  c.success(normalize({rateLimits:{primary:win()}}),1000,100);
@@ -41,6 +51,15 @@ test('monotonic age survives wall clock change; no inferred refill',()=>{
  assert.equal(c.snapshot(500,1000).state,'stale');
  assert.equal(c.snapshot(500,1000).limits[0].remaining_percent,75);
 });
+test('reset credits are sampled with limits, retained when stale, and cleared on omission',()=>{
+ const c=new QuotaCache();
+ c.success(normalize({rateLimits:{primary:win()}}),1000,100,2);
+ assert.equal(c.snapshot(1001,101).reset_credits,2);
+ c.failure();
+ const stale=c.snapshot(1002,102); assert.equal(stale.state,'stale'); assert.equal(stale.reset_credits,2);
+ c.success(normalize({rateLimits:{primary:win()}}),1003,103);
+ assert.equal(c.snapshot(1004,104).reset_credits,null);
+});
 test('demo explicitly marked and JSON/health HTTP integration',async()=>{
  const c=new QuotaCache({source:'demo'});c.success(demo());const s=makeServer(c);
  await new Promise(r=>s.listen(0,'127.0.0.1',r));
@@ -49,7 +68,7 @@ test('demo explicitly marked and JSON/health HTTP integration',async()=>{
  const response=await fetch(url+'/v1/quota');assert.equal(response.headers.get('cache-control'),'no-store');
  assert.equal(response.headers.get('transfer-encoding'),null);
  const text=await response.text();assert.equal(Number(response.headers.get('content-length')),Buffer.byteLength(text));
- const body=JSON.parse(text);assert.equal(body.source,'demo');assert.equal(body.limits.length,2);
+ const body=JSON.parse(text);assert.equal(body.source,'demo');assert.equal(body.limits.length,2);assert.equal(body.reset_credits,null);
  assert.equal((await fetch(url+'/healthz')).status,200);
  c.failure();assert.equal((await fetch(url+'/healthz')).status,503);
  assert.equal((await fetch(url+'/unknown')).status,404);

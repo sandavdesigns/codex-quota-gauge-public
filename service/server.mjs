@@ -2,15 +2,16 @@ import http from 'node:http';
 import {createHash, timingSafeEqual} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
-import {readCodex, normalize, demo} from './provider.mjs';
+import {readCodex, normalize, normalizeResetCredits, demo} from './provider.mjs';
 
 export class QuotaCache {
   constructor({source = 'codex', staleAfter = 900} = {}) {
     this.source = source; this.staleAfter = staleAfter;
-    this.limits = []; this.sampleTime = null; this.sampleMono = null; this.error = null;
+    this.limits = []; this.resetCredits = null; this.sampleTime = null; this.sampleMono = null; this.error = null;
   }
-  success(limits, now = Date.now()/1000, mono = performance.now()/1000) {
-    this.limits = limits; this.sampleTime = Math.floor(now); this.sampleMono = mono; this.error = null;
+  success(limits, now = Date.now()/1000, mono = performance.now()/1000, resetCredits = null) {
+    this.limits = limits; this.resetCredits = resetCredits;
+    this.sampleTime = Math.floor(now); this.sampleMono = mono; this.error = null;
   }
   failure() { this.error = 'source_unavailable'; }
   snapshot(now = Date.now()/1000, mono = performance.now()/1000) {
@@ -20,6 +21,7 @@ export class QuotaCache {
       state: !this.limits.length ? 'missing' : this.error || age >= this.staleAfter || expired ? 'stale' : 'ok',
       server_time: Math.floor(now), updated_at: this.sampleTime, age_seconds:age,
       stale_after_seconds:this.staleAfter, error:this.error,
+      reset_credits:this.resetCredits,
       limits:this.limits.map(x => ({...x, reset_in_seconds:x.resets_at == null ? null : Math.max(0,Math.floor(x.resets_at-now))}))};
   }
 }
@@ -121,8 +123,13 @@ export function main() {
   let stopped = false, timer;
   async function update() {
     try {
-      const limits = source === 'demo' ? demo() : normalize(await readCodex({binary:process.env.CODEX_BIN ?? 'codex'}),process.env.LIMIT_ID ?? 'codex');
-      cache.success(limits);
+      if (source === 'demo') {
+        cache.success(demo(), undefined, undefined, 2);
+      } else {
+        const raw = await readCodex({binary:process.env.CODEX_BIN ?? 'codex'});
+        cache.success(normalize(raw,process.env.LIMIT_ID ?? 'codex'), undefined, undefined,
+          normalizeResetCredits(raw));
+      }
     } catch { cache.failure(); console.error('Quota source unavailable; details suppressed. Check CLI login/status interactively.'); }
     if (!stopped) timer = setTimeout(update, poll*1000);
   }

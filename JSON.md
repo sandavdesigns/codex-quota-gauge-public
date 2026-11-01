@@ -14,6 +14,7 @@
   "age_seconds": 0,
   "stale_after_seconds": 900,
   "error": null,
+  "reset_credits": 2,
   "limits": [
     {
       "id": "primary",
@@ -45,6 +46,7 @@
 | `age_seconds` | Alter der letzten erfolgreichen Quellenabfrage, mit monotoner Uhr berechnet, anfangs `null`. HTTP-Abruf setzt es nicht zurück. |
 | `stale_after_seconds` | Grenze für Alter; Standard 900. |
 | `error` | `null` oder der bereinigte Code `source_unavailable`; keine Server-/Auth-Fehlertexte. |
+| `reset_credits` | Optionale Anzahl verfügbarer Reset-Credits als nichtnegative Ganzzahl oder `null`, wenn die Quelle sie nicht kennt. Die additive Angabe gehört weiterhin zu `schema_version` 1. |
 | `limits` | Null bis zwei Fenster des explizit ausgewählten Buckets. Abwesende Fenster werden weggelassen. |
 | `id` | Stabile ID `primary`/`secondary`, keine Aussage über Fensterdauer. |
 | `label` | Kurze Bezeichnung, z. B. `WOCHE`; unbekannte Dauer wird nicht als Woche bezeichnet. |
@@ -57,4 +59,4 @@ Die Firmware erhöht Alter und reduziert Countdown zwischen Antworten selbst. Be
 
 ## Andere Datenquelle anschließen
 
-`service/provider.mjs` kapselt die OpenAI-Anbindung. Ein eigener Adapter muss bereits normalisierte Limits `{id,label,remaining_percent,window_minutes,resets_at}` liefern und `cache.success(limits)` erst nach erfolgreicher tatsächlicher Abfrage aufrufen. Unbekannte Prozentwerte auslassen, Fehler werfen. Der HTTP-Teil und die Firmware bleiben unverändert. Bei manuellen Datei-Importen unbedingt den ursprünglichen Erhebungszeitpunkt berücksichtigen; bloßes erneutes Einlesen darf alte Werte nicht verjüngen. Ein solcher Datei-Importer ist hier bewusst nicht implementiert.
+`service/provider.mjs` kapselt die OpenAI-Anbindung. Ein eigener Adapter muss bereits normalisierte Limits `{id,label,remaining_percent,window_minutes,resets_at}` liefern und `cache.success(limits, now, mono, resetCredits)` erst nach erfolgreicher tatsächlicher Abfrage aufrufen. `resetCredits` ist eine nichtnegative Ganzzahl oder `null`; bei einer erfolgreichen Abfrage ohne Angabe wird ein alter Wert gelöscht. Unbekannte Prozentwerte auslassen, Fehler werfen. Der HTTP-Teil und die Firmware bleiben unverändert. Bei manuellen Datei-Importen unbedingt den ursprünglichen Erhebungszeitpunkt berücksichtigen; bloßes erneutes Einlesen darf alte Werte nicht verjüngen. Ein solcher Datei-Importer ist hier bewusst nicht implementiert.

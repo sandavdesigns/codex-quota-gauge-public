@@ -6,6 +6,7 @@ Ein kleines WLAN-Display mit ESP32-C3 und rundem GC9A01A-Display (240 × 240 Pix
 
 - Ein geliefertes Limit: großer Ring, Prozentwert, Reset-Countdown, Uhrzeit/Datum und eine animierte Laptop-/Terminalgrafik.
 - Zwei gelieferte Limits: zwei feste, konzentrische Ringe. Der äußere Ring ist als `AUSSEN`, der innere als `INNEN` beschriftet; die Animation ist dann nicht sichtbar.
+- Verfügbare zusätzliche Zurücksetzungen als goldene Sterne (Einzelansicht); unbekannte oder veraltete Werte klar gekennzeichnet.
 - Uhrzeit und Datum im Format `HH:MM TT.MM.`; ohne erfolgreiche Zeitsynchronisation erscheinen Platzhalter.
 - Deutlich markierte Demo-, Offline-, Fehler- und veraltete Zustände.
 

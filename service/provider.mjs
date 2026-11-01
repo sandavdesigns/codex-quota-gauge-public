@@ -48,6 +48,10 @@ export function readCodex({binary = 'codex', timeoutMs = 25000} = {}) {
 }
 
 function number(value) { return typeof value === 'number' && Number.isFinite(value); }
+export function normalizeResetCredits(raw) {
+  const availableCount = raw?.rateLimitResetCredits?.availableCount;
+  return Number.isSafeInteger(availableCount) && availableCount >= 0 ? availableCount : null;
+}
 export function normalize(raw, bucketId = 'codex') {
   if (!raw || typeof raw !== 'object') throw new Error('provider_protocol');
   let bucket;
