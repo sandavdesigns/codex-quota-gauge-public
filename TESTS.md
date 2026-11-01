@@ -1,5 +1,21 @@
 # Prüfung und bekannte Grenzen
 
+## Zusätzliche Zurücksetzungen (01.11.2026)
+
+Die private Device-Firmware wurde mit 62.692 B statischem RAM und 1.268.240 B
+Flash erfolgreich kompiliert und gelinkt. Wegen lokaler Toolchain-/SCons-Probleme
+wurde der letzte `elf2image`-Schritt direkt mit den aus dem PlatformIO-Builder
+geprüften Parametern ausgeführt; esptool bestätigte Image-Prüfsumme und SHA-Hash.
+Das Image (1.309.536 B) passt knapp in die 1.310.720-B-App-Partition.
+USB-Upload auf dem Referenzgerät mit Hash-Prüfung erfolgreich. Die Sternanordnung
+muss optisch am Gerät begutachtet werden; ein Foto der neuen Anzeige liegt noch nicht vor.
+
+26 Diensttests und vier Portaltests bestanden. Die festgelegte Codex-CLI
+`0.164.0-alpha.11.1` unterstützt `rateLimitResetCredits.availableCount` sowohl
+im generierten Schema als auch bei einer echten, ausschließlich lesenden Abfrage.
+Der aktualisierte Referenz-Container liefert den neuen optionalen JSON-Wert.
+Ein unbekannter Wert wird von bestätigten 0 unterschieden; Details/IDs werden nicht weitergereicht.
+
 ## Öffentliche Ausgabe geprüft (31.10.2026)
 
 Direkt aus dem bereinigten ZIP und ohne Rocky-Sprite kompiliert:
